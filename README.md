@@ -5,7 +5,7 @@ A professional web interface for processing data locally with Ollama Qwen 3:8b m
 ## 🚀 Features
 
 - **Professional UI**: Modern dark theme with responsive design
-- **File Upload**: Drag-and-drop support for text files (.txt, .md, .json, .csv, .log)
+- **File Upload**: Drag-and-drop support for text files (.txt, .md, .json, .csv, .log) and Excel files (.xls, .xlsx)
 - **Direct Text Input**: Paste text directly for processing
 - **Multiple Processing Options**:
   - Summarize content
@@ -48,7 +48,7 @@ A professional web interface for processing data locally with Ollama Qwen 3:8b m
 3. **Open your browser** and go to: `http://localhost:3000`
 
 4. **Process your data**:
-   - Upload a text file using drag-and-drop
+   - Upload a file (text or Excel) using drag-and-drop
    - Or paste text directly
    - Select processing type
    - Click "Process with AI"
@@ -71,7 +71,7 @@ ollama-ai-webpage/
 
 - **Backend**: Node.js + Express server
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
-- **File Handling**: Multer for secure uploads
+- **File Handling**: Multer for secure uploads, xlsx library for Excel parsing
 - **AI Integration**: Direct Ollama API calls (localhost:11434)
 - **Security**: CORS enabled, file validation, size limits
 
@@ -111,7 +111,7 @@ Enter your own custom prompt for flexible processing.
 
 ### "File upload failed"
 - Check file size (max 10MB)
-- Verify file type (.txt, .md, .json, .csv, .log only)
+- Verify file type (.txt, .md, .json, .csv, .log, .xls, .xlsx)
 - Ensure proper permissions
 
 ### Server won't start
