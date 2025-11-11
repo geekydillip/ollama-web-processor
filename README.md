@@ -1,6 +1,6 @@
-# Ollama AI Webpage
+# Ollama Web Processor
 
-A professional web interface for processing data locally with Ollama Qwen 3:8b model. Upload files or paste text to get AI-powered analysis, summaries, translations, and more - all processed locally on your machine.
+A professional web interface for processing data locally with Ollama qwen2.5:3b model. Upload files or paste text to get AI-powered analysis, summaries, translations, and more - all processed locally on your machine.
 
 ## 🚀 Features
 
@@ -21,7 +21,7 @@ A professional web interface for processing data locally with Ollama Qwen 3:8b m
 ## 📋 Prerequisites
 
 - **Node.js** (v14 or higher)
-- **Ollama** with Qwen 3:8b model installed
+- **Ollama** with qwen2.5:3b model installed
 - **Web Browser** (Chrome, Firefox, Edge, etc.)
 
 ## 🛠️ Installation
@@ -35,7 +35,7 @@ A professional web interface for processing data locally with Ollama Qwen 3:8b m
 
 ## 🚀 Usage
 
-1. **Start Ollama** with Qwen 3:8b model:
+1. **Start Ollama** with qwen2.5:3b model:
    ```bash
    ollama run qwen2.5:3b
    ```
@@ -56,7 +56,7 @@ A professional web interface for processing data locally with Ollama Qwen 3:8b m
 ## 📁 Project Structure
 
 ```
-ollama-ai-webpage/
+ollama-web-processor/
 ├── server.js              # Express backend server
 ├── package.json           # Node.js dependencies
 ├── README.md              # This file
