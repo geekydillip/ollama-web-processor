@@ -6,17 +6,14 @@ const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const fileContent = document.getElementById('fileContent');
 const removeFile = document.getElementById('removeFile');
-const textInput = document.getElementById('textInput');
-const charCount = document.getElementById('charCount');
 const processBtn = document.getElementById('processBtn');
-const resultsSection = document.getElementById('resultsSection');
-const resultContent = document.getElementById('resultContent');
-const copyBtn = document.getElementById('copyBtn');
-const downloadBtn = document.getElementById('downloadBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const customPrompt = document.getElementById('customPrompt');
 const customPromptInput = document.getElementById('customPromptInput');
 const statusElement = document.getElementById('status');
+const progressContainer = document.getElementById('progressContainer');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
 
 // State
 let currentFile = null;
@@ -29,11 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEventListeners() {
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
-
     // Dropzone events
     dropzone.addEventListener('click', () => fileInput.click());
     dropzone.addEventListener('dragover', handleDragOver);
@@ -44,9 +36,6 @@ function setupEventListeners() {
     fileInput.addEventListener('change', handleFileSelect);
     removeFile.addEventListener('click', clearFile);
 
-    // Text input
-    textInput.addEventListener('input', updateCharCount);
-
     // Processing type change
     document.querySelectorAll('input[name="processingType"]').forEach(radio => {
         radio.addEventListener('change', handleProcessingTypeChange);
@@ -54,31 +43,9 @@ function setupEventListeners() {
 
     // Process button
     processBtn.addEventListener('click', handleProcess);
-
-    // Result actions
-    copyBtn.addEventListener('click', copyToClipboard);
-    downloadBtn.addEventListener('click', downloadResult);
 }
 
-function switchTab(tab) {
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tab);
-    });
 
-    // Update tab content
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.toggle('active', content.id === `${tab}-tab`);
-    });
-
-    // Clear previous data when switching tabs
-    if (tab === 'upload') {
-        textInput.value = '';
-        updateCharCount();
-    } else if (tab === 'paste') {
-        clearFile();
-    }
-}
 
 function handleDragOver(e) {
     e.preventDefault();
@@ -161,9 +128,7 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-function updateCharCount() {
-    charCount.textContent = textInput.value.length;
-}
+
 
 function handleProcessingTypeChange(e) {
     if (e.target.value === 'custom') {
@@ -174,99 +139,131 @@ function handleProcessingTypeChange(e) {
 }
 
 async function handleProcess() {
-    // Get active tab
-    const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
-    
-    // Get input data
-    let inputData = null;
-    let isFile = false;
-    
-    if (activeTab === 'upload') {
-        if (!currentFile) {
-            alert('Please upload a file first');
-            return;
-        }
-        inputData = currentFile;
-        isFile = true;
-    } else {
-        if (!textInput.value.trim()) {
-            alert('Please enter some text first');
-            return;
-        }
-        inputData = textInput.value;
-        isFile = false;
+    if (!currentFile) {
+        alert('Please upload a file first');
+        return;
     }
-    
+
     // Get processing type
     const processingType = document.querySelector('input[name="processingType"]:checked').value;
     const customPromptValue = customPromptInput.value;
-    
+
     // Validate custom prompt
     if (processingType === 'custom' && !customPromptValue.trim()) {
         alert('Please enter a custom prompt');
         return;
     }
-    
-    // Show loading
-    showLoading();
-    
+
     try {
-        let result;
-        
-        if (isFile) {
-            // Process file
+        if (currentFile.name.endsWith('.xlsx') || currentFile.name.endsWith('.xls')) {
+            // Handle Excel processing - show simple progress bar
+            progressContainer.style.display = 'block';
+            updateProgress(0, 'Initializing...');
+            await processExcelFile(currentFile, processingType, customPromptValue);
+        } else {
+            // Process other files - show loading overlay
+            showLoading();
             const formData = new FormData();
-            formData.append('file', inputData);
+            formData.append('file', currentFile);
             formData.append('processingType', processingType);
             formData.append('customPrompt', customPromptValue);
-            
+
             const response = await fetch('/api/process', {
                 method: 'POST',
                 body: formData
             });
-            
+
             if (!response.ok) {
                 throw new Error('Failed to process file');
             }
-            
-            result = await response.json();
-        } else {
-            // Process text
-            const response = await fetch('/api/process-text', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text: inputData,
-                    processingType: processingType,
-                    customPrompt: customPromptValue
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to process text');
+
+            const result = await response.json();
+
+            if (result.success) {
+                // For non-Excel, download as text
+                downloadText(result.result, `processed-${Date.now()}.txt`);
+            } else {
+                throw new Error(result.error || 'Processing failed');
             }
-            
-            result = await response.json();
         }
-        
-        // Display result
-        if (result.success) {
-            currentResult = result.result;
-            resultContent.textContent = result.result;
-            resultsSection.style.display = 'block';
-            resultsSection.scrollIntoView({ behavior: 'smooth' });
-        } else {
-            throw new Error(result.error || 'Processing failed');
-        }
-        
+
     } catch (error) {
         console.error('Processing error:', error);
-        alert('Error: ' + error.message + '\n\nMake sure Ollama is running with the Qwen 3:8b model.');
+        alert('Error: ' + error.message + '\n\nMake sure Ollama is running with the qwen3:latest model.');
     } finally {
         hideLoading();
+        progressContainer.style.display = 'none';
     }
+}
+
+async function processExcelFile(file, processingType, customPrompt) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            // Show simple progress steps
+            setTimeout(() => updateProgress(25, 'Processing file...'), 500);
+            setTimeout(() => updateProgress(50, 'Calling AI model...'), 1500);
+            setTimeout(() => updateProgress(75, 'Generating results...'), 3000);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('processingType', processingType);
+            formData.append('customPrompt', customPrompt);
+
+            const response = await fetch('/api/process', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                reject(new Error('Processing failed'));
+                return;
+            }
+
+            // Wait for response and handle download
+            const result = await response.json();
+
+            if (result.success && result.downloadUrl) {
+                updateProgress(100, 'Processing complete');
+                downloadFile(result.downloadUrl, result.filename || 'processed.xlsx');
+            } else {
+                reject(new Error(result.error || 'Processing failed'));
+            }
+
+            resolve();
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+
+
+function updateProgress(percent, text) {
+    progressFill.style.width = percent + '%';
+    progressText.textContent = text;
+}
+
+
+
+function downloadFile(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function downloadText(text, filename) {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function showLoading() {
@@ -277,36 +274,6 @@ function showLoading() {
 function hideLoading() {
     loadingOverlay.style.display = 'none';
     processBtn.disabled = false;
-}
-
-async function copyToClipboard() {
-    try {
-        await navigator.clipboard.writeText(currentResult);
-        
-        // Visual feedback
-        const originalText = copyBtn.innerHTML;
-        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Copied!';
-        copyBtn.style.color = '#10b981';
-        
-        setTimeout(() => {
-            copyBtn.innerHTML = originalText;
-            copyBtn.style.color = '';
-        }, 2000);
-    } catch (error) {
-        alert('Failed to copy to clipboard');
-    }
-}
-
-function downloadResult() {
-    const blob = new Blob([currentResult], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ollama-result-${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
 async function checkOllamaConnection() {
@@ -339,13 +306,10 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         handleProcess();
     }
-    
+
     // Ctrl/Cmd + K to clear
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         clearFile();
-        textInput.value = '';
-        updateCharCount();
-        resultsSection.style.display = 'none';
     }
 });

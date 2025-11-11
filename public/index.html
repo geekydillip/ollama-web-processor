@@ -43,13 +43,6 @@
                         </svg>
                         Upload File
                     </button>
-                    <button class="tab-btn" data-tab="paste">
-                        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
-                            <rect x="9" y="3" width="6" height="4" rx="2"></rect>
-                        </svg>
-                        Paste Text
-                    </button>
                 </div>
 
                 <!-- Upload Tab Content -->
@@ -86,13 +79,7 @@
                     </div>
                 </div>
 
-                <!-- Paste Tab Content -->
-                <div class="tab-content" id="paste-tab">
-                    <textarea id="textInput" class="text-input" placeholder="Paste your text here..."></textarea>
-                    <div class="char-count">
-                        <span id="charCount">0</span> characters
-                    </div>
-                </div>
+
             </section>
 
             <!-- Processing Options Section -->
@@ -104,69 +91,16 @@
 
                 <div class="processing-types">
                     <label class="radio-card">
-                        <input type="radio" name="processingType" value="summarize" checked>
+                        <input type="radio" name="processingType" value="voc" checked>
                         <div class="radio-card-content">
                             <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                             </svg>
-                            <h3>Summarize</h3>
-                            <p>Get a concise summary</p>
+                            <h3>Customer VOC</h3>
+                            <p>Analyze customer feedback</p>
                         </div>
                     </label>
-
-                    <label class="radio-card">
-                        <input type="radio" name="processingType" value="analyze">
-                        <div class="radio-card-content">
-                            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                            </svg>
-                            <h3>Analyze</h3>
-                            <p>Get key insights</p>
-                        </div>
-                    </label>
-
-                    <label class="radio-card">
-                        <input type="radio" name="processingType" value="extract">
-                        <div class="radio-card-content">
-                            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="8" y1="6" x2="21" y2="6"></line>
-                                <line x1="8" y1="12" x2="21" y2="12"></line>
-                                <line x1="8" y1="18" x2="21" y2="18"></line>
-                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                            </svg>
-                            <h3>Extract</h3>
-                            <p>Extract key points</p>
-                        </div>
-                    </label>
-
-                    <label class="radio-card">
-                        <input type="radio" name="processingType" value="translate">
-                        <div class="radio-card-content">
-                            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                                <line x1="2" y1="12" x2="22" y2="12"></line>
-                            </svg>
-                            <h3>Translate</h3>
-                            <p>Translate to English</p>
-                        </div>
-                    </label>
-
-                    <label class="radio-card">
-                        <input type="radio" name="processingType" value="questions">
-                        <div class="radio-card-content">
-                            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                            </svg>
-                            <h3>Q&A</h3>
-                            <p>Generate questions</p>
-                        </div>
-                    </label>
-
                     <label class="radio-card">
                         <input type="radio" name="processingType" value="custom">
                         <div class="radio-card-content">
@@ -174,15 +108,15 @@
                                 <path d="M12 20h9"></path>
                                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                             </svg>
-                            <h3>Custom</h3>
-                            <p>Custom prompt</p>
+                            <h3>Insight</h3>
+                            <p>Custom processing</p>
                         </div>
                     </label>
                 </div>
 
                 <div class="custom-prompt" id="customPrompt" style="display: none;">
                     <label for="customPromptInput">Custom Prompt:</label>
-                    <textarea id="customPromptInput" class="prompt-input" placeholder="Enter your custom instruction here..."></textarea>
+                    <textarea id="customPromptInput" class="prompt-input" placeholder="Enter your custom prompt here..."></textarea>
                 </div>
 
                 <button class="btn-process" id="processBtn">
@@ -191,38 +125,23 @@
                     </svg>
                     Process with AI
                 </button>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Initializing...</div>
+                </div>
             </section>
 
-            <!-- Results Section -->
-            <section class="results-section" id="resultsSection" style="display: none;">
-                <div class="section-header">
-                    <h2>Results</h2>
-                    <div class="result-actions">
-                        <button class="btn-action" id="copyBtn" title="Copy to clipboard">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
-                            Copy
-                        </button>
-                        <button class="btn-action" id="downloadBtn" title="Download as text file">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                            Download
-                        </button>
-                    </div>
-                </div>
-                <div class="result-content" id="resultContent"></div>
-            </section>
+
 
             <!-- Loading Overlay -->
             <div class="loading-overlay" id="loadingOverlay" style="display: none;">
                 <div class="loading-spinner">
                     <div class="spinner"></div>
-                    <p>Processing with Qwen 3:8b...</p>
+                    <p>Processing with qwen3:latest...</p>
                     <span class="loading-subtext">This may take a moment</span>
                 </div>
             </div>
@@ -230,7 +149,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Powered by <strong>Ollama</strong> & <strong>Qwen 3:8b</strong> | All processing happens locally on your machine</p>
+            <p>Powered by <strong>Ollama</strong> & <strong>qwen3:latest</strong> | All processing happens locally on your machine</p>
         </footer>
     </div>
 

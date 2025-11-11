@@ -13,6 +13,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/downloads', express.static('downloads'));
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -30,7 +31,7 @@ const upload = multer({
 });
 
 // Helper function to call Ollama API
-async function callOllama(prompt, model = 'qwen2.5:3b') {
+async function callOllama(prompt, model = 'qwen3:latest') {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({
       model: model,
@@ -75,140 +76,168 @@ async function callOllama(prompt, model = 'qwen2.5:3b') {
   });
 }
 
-// Route: Upload and process file
+// Route: Upload and process file (streaming for Excel)
 app.post('/api/process', upload.single('file'), async (req, res) => {
   try {
-    let inputText = '';
-    
-    // Get input text from file or direct text input
+    const processingType = req.body.processingType || 'custom';
+    const customPrompt = req.body.customPrompt || '';
+
     if (req.file) {
       const ext = path.extname(req.file.originalname).toLowerCase();
       if (ext === '.xlsx' || ext === '.xls') {
-        const workbook = xlsx.readFile(req.file.path);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        inputText = xlsx.utils.sheet_to_csv(worksheet);
+        // For Excel, process normally
+        return processExcel(req, res);
       } else {
-        inputText = fs.readFileSync(req.file.path, 'utf-8');
+        // For other files, process normally
+        const inputText = fs.readFileSync(req.file.path, 'utf-8');
+        fs.unlinkSync(req.file.path);
+
+        let fullPrompt = '';
+        switch (processingType) {
+          case 'custom':
+            fullPrompt = `${customPrompt}\n\n${inputText}`;
+            break;
+          default:
+            fullPrompt = inputText;
+        }
+
+        const result = await callOllama(fullPrompt);
+        res.json({
+          success: true,
+          result: result,
+          inputLength: inputText.length
+        });
       }
-      // Clean up uploaded file after reading
-      fs.unlinkSync(req.file.path);
     } else if (req.body.text) {
-      inputText = req.body.text;
+      const inputText = req.body.text;
+
+      let fullPrompt = '';
+      switch (processingType) {
+        case 'custom':
+          fullPrompt = `${customPrompt}\n\n${inputText}`;
+          break;
+        default:
+          fullPrompt = inputText;
+      }
+
+      const result = await callOllama(fullPrompt);
+      res.json({
+        success: true,
+        result: result,
+        inputLength: inputText.length
+      });
     } else {
       return res.status(400).json({ error: 'No file or text provided' });
     }
 
-    const processingType = req.body.processingType || 'custom';
-    const customPrompt = req.body.customPrompt || '';
-
-    // Build the prompt based on processing type
-    let fullPrompt = '';
-    
-    switch (processingType) {
-      case 'summarize':
-        fullPrompt = `Please provide a concise summary of the following text:\n\n${inputText}`;
-        break;
-      case 'analyze':
-        fullPrompt = `Please analyze the following text and provide key insights:\n\n${inputText}`;
-        break;
-      case 'extract':
-        fullPrompt = `Please extract the key points and important information from the following text:\n\n${inputText}`;
-        break;
-      case 'translate':
-        fullPrompt = `Please translate the following text to English (if it's not already in English, otherwise keep it as is):\n\n${inputText}`;
-        break;
-      case 'questions':
-        fullPrompt = `Based on the following text, generate 5 important questions and provide answers:\n\n${inputText}`;
-        break;
-      case 'custom':
-        fullPrompt = `${customPrompt}\n\n${inputText}`;
-        break;
-      default:
-        fullPrompt = inputText;
-    }
-
-    // Call Ollama API
-    const result = await callOllama(fullPrompt);
-
-    res.json({ 
-      success: true, 
-      result: result,
-      inputLength: inputText.length
-    });
-
   } catch (error) {
     console.error('Error processing request:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Failed to process data'
     });
   }
 });
 
-// Route: Process text directly (without file upload)
-app.post('/api/process-text', async (req, res) => {
+// Excel processing
+async function processExcel(req, res) {
   try {
-    const { text, processingType, customPrompt } = req.body;
+    const uploadedPath = req.file.path;
+    const originalName = req.file.originalname;
 
-    if (!text) {
-      return res.status(400).json({ error: 'No text provided' });
+    // Read Excel file and convert to JSON
+    const workbook = xlsx.readFile(uploadedPath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+
+    const processingType = req.body.processingType || 'custom';
+    const customPrompt = req.body.customPrompt || '';
+
+    let modelPrompt = '';
+    if (processingType === 'voc') {
+      modelPrompt = `You are a data-cleaning assistant for Problem analysis reported by Customer.
+You will be given a JSON array of rows. Each row has fields "Title" and "Problem" (and may include Case Code or Model No.).
+For each row produce an object with exactly these keys: "Module", "Summarized Problem", "Severity".
+- Remove ALL tokens inside square brackets [] before summarizing.
+- Translate non-English text to English.
+- Summarized Problem must be one concise English sentence merging Title and Problem.
+- Severity must be one of: Critical, High, Medium, Low.
+
+Rules:
+1) Return ONLY a single valid JSON array of objects in the same order as input.
+2) Each object must contain EXACT keys: "Module", "Summarized Problem", "Severity".
+3) No commentary or extra fields.
+4) Output excel file's column sequence sould be "Case Code", "Model NO.", "Title", "Problem", "Module", "Summarized Problem", "Severity".
+
+Input:
+${JSON.stringify(rows, null, 2)}
+
+Return only the JSON array.`;
+    } else {
+      modelPrompt = `${customPrompt}\n\n${JSON.stringify(rows, null, 2)}`;
     }
 
-    let fullPrompt = '';
-    
-    switch (processingType) {
-      case 'summarize':
-        fullPrompt = `Please provide a concise summary of the following text:\n\n${text}`;
-        break;
-      case 'analyze':
-        fullPrompt = `Please analyze the following text and provide key insights:\n\n${text}`;
-        break;
-      case 'extract':
-        fullPrompt = `Please extract the key points and important information from the following text:\n\n${text}`;
-        break;
-      case 'translate':
-        fullPrompt = `Please translate the following text to English (if it's not already in English, otherwise keep it as is):\n\n${text}`;
-        break;
-      case 'questions':
-        fullPrompt = `Based on the following text, generate 5 important questions and provide answers:\n\n${text}`;
-        break;
-      case 'custom':
-        fullPrompt = `${customPrompt}\n\n${text}`;
-        break;
-      default:
-        fullPrompt = text;
+    // Send to AI model
+    const modelResult = await callOllama(modelPrompt);
+
+    // Parse AI response back to JSON
+    let modelText = modelResult.trim();
+    const firstBracket = modelText.indexOf('[');
+    const lastBracket = modelText.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+      modelText = modelText.substring(firstBracket, lastBracket + 1);
     }
 
-    const result = await callOllama(fullPrompt);
+    const parsed = JSON.parse(modelText);
 
-    res.json({ 
-      success: true, 
-      result: result,
-      inputLength: text.length
+    // Merge original data with AI results
+    const merged = rows.map((r, i) => {
+      const ai = parsed[i] || {};
+      return {
+        ...r,
+        Module: ai.Module || '',
+        'Summarized Problem': ai['Summarized Problem'] || ai.SummarizedProblem || '',
+        Severity: ai.Severity || ''
+      };
     });
 
+    // Convert merged JSON back to Excel
+    const newWb = xlsx.utils.book_new();
+    const newSheet = xlsx.utils.json_to_sheet(merged);
+    xlsx.utils.book_append_sheet(newWb, newSheet, 'Data');
+    const buf = xlsx.write(newWb, { bookType: 'xlsx', type: 'buffer' });
+
+    // Save to file
+    const processedFilename = `processed-${Date.now()}-${originalName}`;
+    const processedPath = path.join('downloads', processedFilename);
+    fs.writeFileSync(processedPath, buf);
+
+    fs.unlinkSync(uploadedPath);
+
+    res.json({
+      success: true,
+      downloadUrl: `/downloads/${processedFilename}`,
+      filename: processedFilename
+    });
   } catch (error) {
-    console.error('Error processing text:', error);
-    res.status(500).json({ 
-      error: error.message || 'Failed to process text'
+    console.error('Excel processing error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Processing failed'
     });
   }
-});
+}
+
+
 
 // Health check endpoint
-app.get('/api/health', async (req, res) => {
-  try {
-    // Test Ollama connection
-    await callOllama('Hello', 'qwen2.5:3b');
-    res.json({ status: 'ok', ollama: 'connected' });
-  } catch (error) {
-    res.status(503).json({ status: 'error', ollama: 'disconnected', message: error.message });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', ollama: 'connected' });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`\n🚀 Ollama Web Processor is running!`);
   console.log(`📍 Open your browser and go to: http://localhost:${PORT}`);
-  console.log(`🤖 Make sure Ollama is running with Qwen 3:8b model\n`);
+  console.log(`🤖 Make sure Ollama is running with qwen3:latest model\n`);
 });
